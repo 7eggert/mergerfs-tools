@@ -86,7 +86,7 @@ def copy_file(src,dst,relfile):
     frompath = os.path.join(src+b'/',b'./',relfile)
     topath   = dst+b'/'
     args = [b'rsync',
-            b'-alXA',
+            b'-alHAWXSv',
             b'--relative',
             b'--progress',
             frompath,
