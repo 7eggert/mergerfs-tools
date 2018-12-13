@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+
+from tkinter import *
+from tkinter.ttk import *
+
+window = Tk()
+window.title("mergerfs.gui")
+
+label = Label(window,text='user.mergerfs.policy')
+label.grid(column=0,row=0)
+
+combo = Combobox(window)
+
+combo['values'] = ('all','newest','mfs','lfs','lus')
+combo.grid(column=1,row=0)
+
+window.mainloop()
