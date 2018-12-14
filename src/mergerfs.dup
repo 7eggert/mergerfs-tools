@@ -16,6 +16,7 @@
 
 import argparse
 import ctypes
+import collections
 import errno
 import fnmatch
 import os
@@ -65,10 +66,10 @@ def mergerfs_control_file(basedir):
     return mergerfs_control_file(basedir)
 
 
-def mergerfs_srcmounts(ctrlfile):
-    srcmounts = lgetxattr(ctrlfile,b'user.mergerfs.srcmounts')
-    srcmounts = srcmounts.split(b':')
-    return srcmounts
+def mergerfs_branches(ctrlfile):
+    branches = lgetxattr(ctrlfile,b'user.mergerfs.srcmounts')
+    branches = branches.split(b':')
+    return branches
 
 
 def match(filename,matches):
@@ -82,9 +83,9 @@ def execute(args):
     return subprocess.call(args)
 
 
-def build_copy_file_rel(src,dst,relfile):
+def build_copy_file_rel(src,tgt,relfile):
     frompath = os.path.join(src+b'/',b'./',relfile)
-    topath   = dst+b'/'
+    topath   = tgt+b'/'
     return [b'rsync',
             b'-alHAWXSv',
             b'--relative',
@@ -93,24 +94,20 @@ def build_copy_file_rel(src,dst,relfile):
             topath]
 
 
-def build_copy_file(src,dst):
+def build_copy_file(src,tgt):
     return [b'rsync',
             b'-alHAWXSv',
             b'--progress',
             src,
-            dst]
+            tgt]
 
-def sorted_by_freespace(srcmounts):
-    lfsp = []
-    for srcmount in srcmounts:
-        vfs = os.statvfs(srcmount)
-        avail = vfs.f_bavail * vfs.f_frsize
-        total = vfs.f_blocks * vfs.f_frsize
-        per = avail / total
-        lfsp.append((srcmount,per))
-    lfsp = [x for (x,y) in sorted(lfsp, key=lambda x: x[1])]
-    lfsp.reverse()
-    return lfsp
+
+def build_branches_freespace(branches):
+    rv = dict()
+    for branch in branches:
+        st = os.statvfs(branch)
+        rv[branch] = st.f_bavail * st.f_frsize
+    return rv
 
 
 def buildargparser():
@@ -167,8 +164,8 @@ def main():
     includes  = ['*'] if not args.include else args.include
     excludes  = args.exclude
     ctrlfile  = mergerfs_control_file(args.dir)
-    srcmounts = mergerfs_srcmounts(ctrlfile)
-    branches  = sorted_by_freespace(srcmounts)
+    branches  = mergerfs_branches(ctrlfile)
+    branches  = build_branches_freespace(branches)
 
     try:
         for (dirpath,dirnames,filenames) in os.walk(args.dir):
@@ -177,24 +174,32 @@ def main():
                     continue
                 if not match(filename,includes):
                     continue
+
                 fullpath = os.path.join(dirpath,filename)
-                allpaths = mergerfs_allpaths(fullpath)
-                source_file = find_source_file(allpaths)
-                allpaths.remove(source_file)
+                relpath  = mergerfs_relpath(fullpath)
+                existing = mergerfs_allpaths(fullpath)
+                src_file = find_source_file(existing)
+                src_file_size = os.stat(source_file).st_size
+                existing.remove(src_file)
 
                 i = 1
-                for dest_file in allpaths:
-                    args = build_copy_file(source_file,dest_file)
+                for tgt_file in existing:
+                    args = build_copy_file(src_file,tgt_file)
                     print(args)
                     if execute:
                         pass
                     i += 1
 
                 for c in range(i,count):
-                    if execute:
-                        pass
-                    print(c)
-
+                    for (branch,freespace) in sorted(branches,key=branches.get):
+                        tgt_file = os.path.join(branch,relpath)
+                        if os.path.exists(tgt_file):
+                            continue
+                        args = build_copy_file(src_file,tgt_file)
+                        print(args)
+                        if execute:
+                            pass
+                        break
 
     except KeyboardInterrupt:
         print("exiting: CTRL-C pressed")
