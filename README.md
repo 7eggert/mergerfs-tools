@@ -66,9 +66,9 @@ $ mergerfs.fsck -v -f manual /path/to/dir
 
 ### mergerfs.dup
 
-Duplicates files & directories across drives in pool.
+Duplicates files & directories across drives in pool. If more than one file exists across the pool branches the one with the most recent `mtime` is used, if they are equal the most recent `ctime`, then the largest file.
 
-Copies files to drives with the most free space.
+Copies files to drives with the most free space. Removes files beyond the **count** specified.
 
 Run as `root`. Requires `rsync` to be installed.
 
