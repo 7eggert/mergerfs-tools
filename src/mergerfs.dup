@@ -82,17 +82,23 @@ def execute(args):
     return subprocess.call(args)
 
 
-def copy_file(src,dst,relfile):
+def build_copy_file_rel(src,dst,relfile):
     frompath = os.path.join(src+b'/',b'./',relfile)
     topath   = dst+b'/'
-    args = [b'rsync',
+    return [b'rsync',
             b'-alHAWXSv',
             b'--relative',
             b'--progress',
             frompath,
             topath]
-    return execute(args)
 
+
+def build_copy_file(src,dst):
+    return [b'rsync',
+            b'-alHAWXSv',
+            b'--progress',
+            src,
+            dst]
 
 def sorted_by_freespace(srcmounts):
     lfsp = []
@@ -157,10 +163,12 @@ def main():
         sys.exit(1)
 
     count     = args.count
+    execute   = args.execute
     includes  = ['*'] if not args.include else args.include
     excludes  = args.exclude
     ctrlfile  = mergerfs_control_file(args.dir)
     srcmounts = mergerfs_srcmounts(ctrlfile)
+    branches  = sorted_by_freespace(srcmounts)
 
     try:
         for (dirpath,dirnames,filenames) in os.walk(args.dir):
@@ -171,15 +179,21 @@ def main():
                     continue
                 fullpath = os.path.join(dirpath,filename)
                 allpaths = mergerfs_allpaths(fullpath)
-                if len(allpaths) >= count:
-                    continue
-                basepath = mergerfs_basepath(fullpath)
-                relpath  = mergerfs_relpath(fullpath)[1:]
-                drives   = sorted_by_freespace(srcmounts)
-                while (len(allpaths) < count) and len(drives):
-                    copy_file(basepath,drives[0],relpath)
-                    del drives[0]
-                    allpaths = mergerfs_allpaths(fullpath)
+                source_file = find_source_file(allpaths)
+                allpaths.remove(source_file)
+
+                i = 1
+                for dest_file in allpaths:
+                    args = build_copy_file(source_file,dest_file)
+                    print(args)
+                    if execute:
+                        pass
+                    i += 1
+
+                for c in range(i,count):
+                    if execute:
+                        pass
+                    print(c)
 
 
     except KeyboardInterrupt:
