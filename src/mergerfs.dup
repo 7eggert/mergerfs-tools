@@ -133,6 +133,19 @@ def buildargparser():
     return parser
 
 
+def mergerfs_allpaths(fullpath):
+    rv = lgetxattr(fullpath,b'user.mergerfs.allpaths')
+    return rv.split(b'\0')
+
+
+def mergerfs_basepath(fullpath):
+    return lgetxattr(fullpath,b'user.mergerfs.basepath')
+
+
+def mergerfs_relpath(fullpath):
+    return lgetxattr(fullpath,b'user.mergerfs.relpath')
+
+
 def main():
     parser = buildargparser()
     args = parser.parse_args()
@@ -157,18 +170,16 @@ def main():
                 if not match(filename,includes):
                     continue
                 fullpath = os.path.join(dirpath,filename)
-                allpaths = lgetxattr(fullpath,b'user.mergerfs.allpaths')
-                allpaths = allpaths.split(b'\0')
+                allpaths = mergerfs_allpaths(fullpath)
                 if len(allpaths) >= count:
                     continue
-                basepath = lgetxattr(fullpath,b'user.mergerfs.basepath')
-                relpath  = lgetxattr(fullpath,b'user.mergerfs.relpath')[1:]
+                basepath = mergerfs_basepath(fullpath)
+                relpath  = mergerfs_relpath(fullpath)[1:]
                 drives   = sorted_by_freespace(srcmounts)
                 while (len(allpaths) < count) and len(drives):
                     copy_file(basepath,drives[0],relpath)
                     del drives[0]
-                    allpaths = lgetxattr(fullpath,b'user.mergerfs.allpaths')
-                    allpaths = allpaths.split(b'\0')
+                    allpaths = mergerfs_allpaths(fullpath)
 
 
     except KeyboardInterrupt:
