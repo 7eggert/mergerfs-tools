@@ -159,13 +159,18 @@ def md5sums_all(paths):
 
 
 def newest_dedup(stats):
-    if mtime_all(stats):
-        del stats[:]
-        return
-
     stats.sort(key=lambda stat: stat[1].st_mtime)
+    #remove files with same mtime as the newest
+    while (len(stats) > 1) and (stats[-1][1].st_mtime == stats[-2][1].st_mtime):
+        newest = stats[-1]
+        stats.remove(newest)
+    #also remove the newest
     newest = stats[-1]
     stats.remove(newest)
+    #empty list?
+    if len(stats) < 1:
+        del stats[:]
+
 
 def newest_any_dedup(stats):
     stats.sort(key=lambda stat: stat[1].st_mtime)
@@ -174,13 +179,17 @@ def newest_any_dedup(stats):
 
 
 def oldest_dedup(stats):
-    if mtime_all(stats):
-        del stats[:]
-        return
-
     stats.sort(key=lambda stat: -stat[1].st_mtime)
+    #remove files with same mtime as the oldest
+    while (len(stats) > 1) and (stats[-1][1].st_mtime == stats[-2][1].st_mtime):
+        oldest = stats[-1]
+        stats.remove(oldest)
+    #also remove the oldest
     oldest = stats[-1]
     stats.remove(oldest)
+    #empty list?
+    if len(stats) < 1:
+        del stats[:]
 
 def oldest_any_dedup(stats):
     stats.sort(key=lambda stat: -stat[1].st_mtime)
@@ -189,18 +198,40 @@ def oldest_any_dedup(stats):
 
 
 def largest_dedup(stats):
-    if size_all(stats):
-        del stats[:]
-        return
-
     stats.sort(key=lambda stat: stat[1].st_size)
+    #remove files with same size as the largest
+    while (len(stats) > 1) and (stats[-1][1].st_size == stats[-2][1].st_size):
+        largest = stats[-1]
+        stats.remove(largest)
+    #also remove the largest
     largest = stats[-1]
     stats.remove(largest)
+    #empty list?
+    if len(stats) < 1:
+        del stats[:]
 
 def largest_any_dedup(stats):
     stats.sort(key=lambda stat: stat[1].st_size)
     largest = stats[-1]
     stats.remove(largest)
+
+def smallest_dedup(stats):
+    stats.sort(key=lambda stat: stat[1].st_size)
+    #remove files with same size as the smallest
+    while (len(stats) > 1) and (stats[-1][1].st_size == stats[-2][1].st_size):
+        smallest = stats[-1]
+        stats.remove(smallest)
+    #also remove the smallest
+    smallest = stats[-1]
+    stats.remove(smallest)
+    #empty list?
+    if len(stats) < 1:
+        del stats[:]
+
+def smallest_any_dedup(stats):
+    stats.sort(key=lambda stat: stat[1].st_size)
+    smallest = stats[-1]
+    stats.remove(smallest)
 
 
 def sort_space_free(stat):
@@ -212,6 +243,11 @@ def drive_with_most_space_dedup(stats):
     stats.sort(key=sort_space_free)
     largest = stats[-1]
     stats.remove(largest)
+
+def drive_with_least_space_dedup(stats):
+    stats.sort(key=sort_space_free)
+    smallest = stats[1]
+    stats.remove(smallest)
 
 
 def getdedupfun(name):
@@ -229,8 +265,14 @@ def getdedupfun(name):
         return largest_dedup
     elif name == 'largest-any':
         return largest_dedup
+    elif name == 'smallest':
+        return smallest_dedup
+    elif name == 'smallest-any':
+        return smallest_any_dedup
     elif name == 'mostfreespace':
         return drive_with_most_space_dedup
+    elif name == 'leastfreespace':
+        return drive_with_least_space_dedup
 
 
 def getxattr(path,key):
@@ -303,7 +345,7 @@ def buildargparser():
                         choices=['same-size','different-size','same-hash','different-hash'],
                         help='ignore files if...')
     parser.add_argument('-d','--dedup',
-                        choices=['manual','newest','newest-any','oldest','oldest-any','largest','largest-any','mostfreespace'],
+                        choices=['manual','newest','newest-any','oldest','oldest-any','largest','largest-any','smallest','smallest-any','mostfreespace','leastfreespace'],
                         default='newest',
                         help='what file to **keep**')
     parser.add_argument('-e','--execute',
