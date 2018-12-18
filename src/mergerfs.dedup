@@ -181,44 +181,27 @@ def md5sums_1MB_all(stats):
         return all(hash_file_1MB(path) == hashval for (path,st) in stats[1:])
     return False
 
+def mtime_dedup(stats, newest, strict):
+    if not strict and size_all(stats) and mtime_all(stats):
+        drive_with_most_space_dedup(stats)
+        return
+    stats.sort(key=lambda st: st[1].st_mtime, reverse=newest)
+    first = stats[0]
+    stats.remove(first)
+    if strict and mtime_any(first[1].st_mtime,stats):
+        stats.clear()
 
 def oldest_dedup(stats):
-    if size_all(stats) and mtime_all(stats):
-        drive_with_most_space_dedup(stats)
-        return
-
-    stats.sort(key=lambda st: st[1].st_mtime)
-    oldest = stats[0]
-    stats.remove(oldest)
-
+    return mtime_dedup(stats, False, False)
 
 def strict_oldest_dedup(stats):
-    stats.sort(key=lambda st: st[1].st_mtime,reverse=False)
-
-    oldest = stats[0]
-    stats.remove(oldest)
-    if mtime_any(oldest[1].st_mtime,stats):
-        stats.clear()
-
+    return mtime_dedup(stats, False, True)
 
 def newest_dedup(stats):
-    if size_all(stats) and mtime_all(stats):
-        drive_with_most_space_dedup(stats)
-        return
-
-    stats.sort(key=lambda st: st[1].st_mtime,reverse=True)
-    newest = stats[0]
-    stats.remove(newest)
-
+    return mtime_dedup(stats, True, False)
 
 def strict_newest_dedup(stats):
-    stats.sort(key=lambda st: st[1].st_mtime,reverse=True)
-
-    newest = stats[0]
-    stats.remove(newest)
-    if mtime_any(newest[1].st_mtime,stats):
-        stats.clear()
-
+    return mtime_dedup(stats, True, True)
 
 def largest_dedup(stats):
     if size_all(stats) and mtime_all(stats):
@@ -228,7 +211,6 @@ def largest_dedup(stats):
     stats.sort(key=lambda st: st[1].st_size,reverse=True)
     largest = stats[0]
     stats.remove(largest)
-
 
 def strict_largest_dedup(stats):
     stats.sort(key=lambda st: st[1].st_size,reverse=True)
